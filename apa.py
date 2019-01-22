@@ -3,6 +3,10 @@ from time import sleep         # http://rasp.io/inspiring
 spi = spidev.SpiDev()
 spi.open(0,1)   # using device 1 so 0 is free for AZ
 
+# Change: I added the following to make this work properly on my system.
+# This may have become necessary due to an update to the base raspbian
+# code. I am using raspbian/stretch and the apa.py I got worked with
+# raspbian jesse, I believe. ssh 01/21/2019
 spi.max_speed_hz=20000
 
 class Apa(object):
@@ -25,20 +29,20 @@ class Apa(object):
         for x in range((self.numleds // 32) +2):  #check this not overkill
             self.flush_leds()
 
-    def reset_leds(self):    
-        """reset_leds() switches all leds off manually 
+    def reset_leds(self):
+        """reset_leds() switches all leds off manually
         without changing stored led_values"""
         self.flush_leds()
         for x in range(self.numleds):
-            """Set all APA102c LEDs to zero brightness 0xE0, 
+            """Set all APA102c LEDs to zero brightness 0xE0,
             zero colour"""
             self.send = spi.xfer([0xE0, 0x00, 0x00, 0x00])
         for x in range((self.numleds // 32) +2):
             self.flush_leds()
 
     def zero_leds(self):
-        """zero_leds() zeroes stored led_values 
-        without writing their values to the LEDs. 
+        """zero_leds() zeroes stored led_values
+        without writing their values to the LEDs.
         i.e. total reset but don't display yet"""
         for y in range(self.numleds):
             self.led_values[y] = ([0xE0, 0x00, 0x00, 0x00])
@@ -47,19 +51,19 @@ class Apa(object):
         """led_set() is used to set the values for a specific LED.
         number is the list index of the LED
         e.g. first LED is 0 and eighth is 7.
-        
+
         Brightness values are 0-31 for simplicity
         But you can also use  224-255 or 0xE0-0xFF
-        
+
         Colour values are 0-255 in decimal or hex 0x00-0xFF.
         Values such as 255, 0, 0, 0 sometimes cause errors.
-        
+
         If you want "black" or "off", better to use brightness of 224 or 0xE0
         then the LED will be off regardless of what colour values you give it
         """
         if (brightness < 32):   # so you can use 0-31 for brightness too
             brightness += 224
-                
+
         self.led_values[number] = [brightness, blue, green, red]
 
 
@@ -83,7 +87,7 @@ if __name__ == "__main__":
     ledstrip.led_set(4, 255, 50, 0, 50)  #magenta led 5
     ledstrip.led_set(5, 255, 50, 50, 0)  #cyan led 6
     ledstrip.led_set(6, 255, 0, 50, 50)  #yellow led 7
-    ledstrip.led_set(7, 224, 0, 0, 0)    #black led 8 
+    ledstrip.led_set(7, 224, 0, 0, 0)    #black led 8
 
     print("Writing to LEDS")
     ledstrip.write_leds()
@@ -91,19 +95,19 @@ if __name__ == "__main__":
     sleep(5)
     print("Resetting LEDS")
     ledstrip.reset_leds()
-    
+
 
 """How it works...
 
 import apa
 
-You define the number of LEDs 
+You define the number of LEDs
 
 numleds = 20  and then call the class with...
 
 ledstrip = apa.Apa(numleds)
 
-ledstrip.flush_leds() sends 4 null bytes to spi 0 on CE1 to 'wake' the 
+ledstrip.flush_leds() sends 4 null bytes to spi 0 on CE1 to 'wake' the
 APA102c LEDs
 
 Then you set the values of your LEDs
@@ -117,7 +121,7 @@ But you can also use  224-255 or 0xE0-0xFF
 
 RGB colour values are 0-255 decimal (or hex 0x00-0xFF)
 Values such as 255, 0, 0, 0 sometimes cause errors.
-        
+
 If you want "black" or "off", better to use brightness of 0, 224 or 0xE0
 then the LED will be off regardless of what colour values you give it
 All LED values are stored in list variable
@@ -125,12 +129,12 @@ led_values
 
 ledstrip.write_leds() initiates the SK9822 (or APA102c) LEDs, then writes
 to spi the contents of led_values, namely 4 data bytes for each LED:
-brightness, blue, green, red  
+brightness, blue, green, red
 
 This sets the brightness and colours of each LED.
 
 After that it sends (numleds // 32) +2 iterations of null data to
-allow time for the LEDs at the end to catch up before writing to 
+allow time for the LEDs at the end to catch up before writing to
 them again.
 
 Default spi speed from spidev seems to be about 330 kHz.
@@ -139,14 +143,14 @@ of time off in between should take about 48/330000 of a second.
 Or you should be able to get 330000/48 = 6875 transactions per second.
 
 There are three nulls between each frame.
-With 20 LEDs you should therefore have 23 * 48/330000 = 3.3ms 
+With 20 LEDs you should therefore have 23 * 48/330000 = 3.3ms
 for each frame (ignoring Python processing time).
 So a theoretical 300 frames per second. But Python slows it down.
 
 I've noticed you can get about 100 counts per second.
 
-You can squash in some more by upping the MHz, but only about 
+You can squash in some more by upping the MHz, but only about
 3 times as many at 60 MHz. It looks like the chip enable process
-slows things down. Perhaps xfer2 would be faster if no 
+slows things down. Perhaps xfer2 would be faster if no
 other SPI devices are in use?
 """
