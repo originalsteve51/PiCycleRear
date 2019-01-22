@@ -2,6 +2,7 @@ import apa
 import time
 from threading import Thread
 from threading import Event
+import camera
 
 
 import paho.mqtt.publish as publish
@@ -58,6 +59,19 @@ animation_right_off = [
       [                  46,47,48,49                  ],
       [                     47,48                     ] ]
 
+# Future: animate the brake bar too
+animation_brake_on = [
+      [24,                  31],
+      [24,25,            30,31],
+      [24,25,26,      29,30,31],
+      [24,25,26,27,28,29,30,31] ]
+
+animation_brake_off = [
+      [ 25,26,27,28,29,30 ],
+      [    26,27,28,29    ],
+      [       27,28       ],
+      [                   ] ]
+
 class SignalController(object):
 
 	def __init__(self):
@@ -65,6 +79,8 @@ class SignalController(object):
 		self.__braking = False
 		self.__keep_flashing = True
 		self.__arrow_on = False
+
+		self.__camera = camera.PiCycleCamera()
 
 		self.__led_arrows = apa.Apa(56)
 		self.__led_arrows.flush_leds()
@@ -198,11 +214,14 @@ class SignalController(object):
 		self.__braking = False
 		publish.single(MQTT_SYNC_PATH, 'brake:off', hostname=MQTT_SERVER)
 
-	# warning will be replaced by camera_on, which will record for some
-	# amount of time (30 sec?) each time it is processed.
-	def warning(self):
-		print('warning')
-		publish.single(MQTT_SYNC_PATH, 'warning:ack', hostname=MQTT_SERVER)
+	def start_recording(self, filename):
+		print('start recording: ', filename)
+		self.__camera.start_recording(filename)
+		publish.single(MQTT_SYNC_PATH, 'start-recording', hostname=MQTT_SERVER)
 
+	def stop_recording(self):
+		print('stop recording')
+		self.__camera.stop_recording()
+		publish.single(MQTT_SYNC_PATH, 'stop-recording', hostname=MQTT_SERVER)
 
 

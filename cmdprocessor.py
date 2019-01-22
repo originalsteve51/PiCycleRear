@@ -1,5 +1,6 @@
 import paho.mqtt.client as mqtt
 import paho.mqtt.publish as publish
+import time
 
 from signalcontroller import SignalController
 
@@ -8,6 +9,10 @@ MQTT_CMD_PATH = 'commands'
 MQTT_SYNC_PATH = "synchronize"
 
 signal_controller = SignalController()
+
+def make_filename_from_datetime():
+    timestr = time.strftime("%Y%m%d-%H%M%S")
+    return timestr
 
 def on_connect(client, userdata, flags, rc):
     print('CommandProcessor connected with rc = ', rc, ' Ready to receive commands.')
@@ -20,14 +25,19 @@ def on_message(client, userdata, msg):
         signal_controller.right_arrow()
     if msg.payload == b'off':
         signal_controller.stop_flashing()
-    if msg.payload == b'brake':
-        signal_controller.brake_on()
-    if msg.payload == b'brake-off':
-        signal_controller.brake_off()
+    if msg.payload == b'record':
+        filename = make_filename_from_datetime()
+        signal_controller.start_recording(filename)
+    if msg.payload == b'record-off':
+        signal_controller.stop_recording()
     if msg.payload == b'ping':
         publish.single(MQTT_SYNC_PATH, 'ping:ack', hostname=MQTT_SERVER)
     if msg.payload == b'warning':
-        signal_controller.warning()
+        signal_controller.brake_on()
+        publish.single(MQTT_SYNC_PATH, 'warning:ack', hostname=MQTT_SERVER)
+    if msg.payload == b'warning:off':
+        signal_controller.brake_off()
+        publish.single(MQTT_SYNC_PATH, 'warning-off:ack', hostname=MQTT_SERVER)
 
 
 
